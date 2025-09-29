@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import CustomChannelHeader from "./components/CustomChannelHeader";
 import CustomMessageList from "./components/CustomMessageList";
-import CustomMessageInput from "./components/CustomMessageInput";
+import { CustomMessageInput } from './components/CustomMessageInput';
 import { ChannelData } from "stream-chat";
 import { StreamChat } from "stream-chat";
 import {
