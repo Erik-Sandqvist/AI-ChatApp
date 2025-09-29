@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+import CustomChannelHeader from "./components/CustomChannelHeader";
+import CustomMessageList from "./components/CustomMessageList";
+import CustomMessageInput from "./components/CustomMessageInput";
+import { ChannelData } from "stream-chat";
 import { StreamChat } from "stream-chat";
 import {
   Chat,
@@ -9,6 +13,7 @@ import {
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/v2/index.css";
 
+// Miljövariabler
 const apiKey = import.meta.env.VITE_STREAM_API_KEY;
 const userId = import.meta.env.VITE_STREAM_USER_ID;
 const userName = import.meta.env.VITE_STREAM_USER_NAME;
@@ -23,47 +28,62 @@ const App = () => {
 
   // Hämta token från backend
   useEffect(() => {
-    const fetchToken = async () => {
+    const fetchToken = async (userId: string) => {
       try {
+        console.log("🔑 Fetching token for user:", userId);
         const res = await fetch(`${backendUrl}/token`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId, userName }),
         });
-        const data = await res.json();
-        setUserToken(data.token);
+
+        const text = await res.text();
+        if (!res.ok) {
+          console.error("❌ Token endpoint error:", res.status, text);
+          throw new Error(`Token fetch failed: ${res.status}`);
+        }
+
+        const data = JSON.parse(text);
+        console.log("✅ Got token:", data.token);
+        setUserToken(data.token); // <-- här sätter vi token i state
       } catch (err) {
-        console.error("Failed to fetch token:", err);
+        console.error("❌ fetchToken failed:", err);
       }
     };
 
-    fetchToken();
+    fetchToken(userId);
   }, []);
 
   // Connecta användaren när token finns
   useEffect(() => {
     if (!userToken) return;
 
-    client.connectUser(
-      { id: userId, name: userName, image: `https://getstream.io/random_png/?name=${userName}` },
-      userToken
-    );
+    const connectAndInit = async () => {
+      try {
+        console.log("🔌 Connecting user:", userId);
+        await client.connectUser(
+          { id: userId, name: userName, image: `https://getstream.io/random_png/?name=${userName}` },
+          userToken
+        );
+        console.log("✅ User connected to Stream");
 
-    const initChannel = async () => {
-      const ch = client.channel(
-        "messaging",
-        "my_channel",
-        {
+        const ch = client.channel("messaging", "my_channel", {
           members: [userId],
-        } as any // <-- fixar TypeScript-felet med name
-      );
+          // @ts-ignore: name är tillåtet av API:t men saknas i typerna
+          name: "My Chat Channel",
+        });
 
-      await ch.watch();
-      setChannel(ch);
-      setLoading(false);
+        await ch.watch();
+        console.log("✅ Channel ready:", ch.id);
+
+        setChannel(ch);
+        setLoading(false);
+      } catch (err) {
+        console.error("❌ Failed to connect or init channel:", err);
+      }
     };
 
-    initChannel();
+    connectAndInit();
 
     return () => {
       client.disconnectUser();
@@ -74,11 +94,11 @@ const App = () => {
   if (!channel) return <div>Failed to load channel</div>;
 
   return (
-    <Chat client={client} theme="light">
+    <Chat client={client} theme="dark">
       <Channel channel={channel}>
-        <ChannelHeader />
-        <MessageList />
-        <MessageInput />
+        <CustomChannelHeader />
+        <CustomMessageList />
+        <CustomMessageInput />
       </Channel>
     </Chat>
   );
